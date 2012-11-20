@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Proxy by ayurmedia</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Proxy</h1>
+        <p>node.js proxy server, with script to bottom optimization</p>
+
+        <p class="view"><a href="https://github.com/ayurmedia/proxy">View the Project on GitHub <small>ayurmedia/proxy</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/ayurmedia/proxy/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/ayurmedia/proxy/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/ayurmedia/proxy">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>Proxy server in node.js</h1>
+
+<p>This proxy server runs on port 8080 and can be used as a real proxy-server. 
+I use this in OSX 10.8.2. Set networksettings &gt; advanced &gt; http-proxy to "localhost:8080". 
+and start the server from commandline with. 
+"$ node proxy.js"
+Turn off http-proxy if you dont use it anymore.
+POST-Request from Browser seem to work, but are not much tested. 90% of usage is GET-Requests anyways. 
+there are some domains and extensions filtered, as they are not working 100% with this proxy. 
+the basic idea is only to intercept "content-type: text/html" but actually some webservers are badly configured and even send images with text/html. so there is an additional extensionfilter. 
+the proxyserver does not work with https, so only turn on network-proxy for http(80) and not https(443). </p>
+
+<p>the script reorders javascript in html-code and moves it from top to bottom, so that the page loads faster. 
+one drawback is, that now the html-code is buffered, as all html needs to be loaded by the proxy first to restructure the html. it could be done in the request.on('data') but its quite complicated as html-code is spread over different chunks.</p>
+
+<p>if there is document.write inside the html-flow. and does not append to body at the end, then these blocks will be shown at the end of the document. but its bad practice anyways. so i don't care if these pages break. the pregmatch could be optimized to ignore script tags with document.write, and not rearrange them. </p>
+
+<p>the proxy.js is developed and tested with current latest node.js v0.84. </p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/ayurmedia">ayurmedia</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
