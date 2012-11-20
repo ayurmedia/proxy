@@ -4,30 +4,31 @@ var util = require('util');
 
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
-	var proxy_options = request.headers; 
-	var proxy_options2 = {
-		host: request_url.hostname, 
-		port: request_url.port || 80 , 
-		path: request_url.path , 
-		method: request.method 
-	}
-	proxy_options.path = proxy_options2.path;
-	proxy_options.host = proxy_options2.host; 
-	proxy_options.port = proxy_options2.port;  
+	var proxy_options = {}; 
+	proxy_options.headers = request.headers; 
+	proxy_options.path = request_url.path;
+	proxy_options.method = request.method ; 
+	proxy_options.host = request_url.hostname; 
+	proxy_options.port = request_url.port || 80;  
 
+	spaces = []; for ( i=0; i<90; i++) { spaces.push(' '); }
+	util.print( (request.url + spaces.join('') ).substr(0,90) + "\r" ); 
+	
 	var proxy_request = http.request( proxy_options , function(proxy_response){
 	   var content_type =  proxy_response.headers['content-type'] || "" ; 
-		var is_text = content_type.match('text\/html') || 0;
+	   var is_text = content_type.match('text\/html') || 0;
   	   var mybuffer = ''; 
 
 		if ( request.url.match(/\.(ico|xml|css|js|jpg|gif|png)/i) ){
 			is_text = 0; 
 		}	
-		if ( request.url.match(/(facebook|gravatar|vimeo|stumbleupon)/) ){
+		if ( request.url.match(/(owa|facebook|gravatar|vimeo|stumbleupon)/) ){
 			is_text = 0; 
 		}	
 		if( is_text ) {
-			console.log( request.url.substr(0,90) ); 	
+			console.log( "\n" + request.url.substr(0,90) ); 	
+			//console.log( proxy_options ); 
+			
 			proxy_response.setEncoding('binary');
 		} 
 		
@@ -41,26 +42,25 @@ var server = http.createServer(function(request, response) {
 		// chunks, and reinsert them at the on('end'), but its quite complicated
 		// because a string can be split up in 2 chunks... load full buffer for now. 	
 		proxy_response.on('data', function(chunk){
-		  		
-		   if ( is_text ) {
+			if ( is_text ) {
 				mybuffer += chunk.toString('binary') ; 
 			} else {
 				response.write(chunk,'binary');
-   		}	
-				if ( len > 10000 ) {
-					cur += chunk.length;
-  					util.print("\t\t\t\t\t\t\t\t\t\t\t\t\t " + (100.0 * cur / len).toFixed(2) + "% " + cur + " bytes\r");
-				}	
+			}
+				
+			if ( len > 10000 ) {
+				cur += chunk.length;
+				util.print("\t\t\t\t\t\t\t\t\t\t\t\t\t " + (100.0 * cur / len).toFixed(2) + "% " + cur + " bytes\r");
+			}	
 		});
 
 		proxy_response.on('end', function() {
-		  	
-			 if ( is_text ) {
+		  	if ( is_text  ) {
 				output = mybuffer.toString().replace(/\n/g,'\uffff'); 
 				// find javascripts	
 				matches = output.match(/\<script.*?\<\/script\>/gi ) || [];
 				
-				if( matches.length > 0 ) {
+				if( matches.length > 0 && output.match(/\<\/body\>/i) /* google redirects with missing body */) {
 					// remove javascripts
 					output = output.replace(	/\<script.*?\<\/script\>/gi , "" ); 
 
@@ -70,10 +70,9 @@ var server = http.createServer(function(request, response) {
 				// send to browser
 				output = output.replace(/\uffff/g,'\n');
  	
-	
 				response.write( output ,'binary');	
 			} 	
-				response.end();
+			response.end();
 		});
 
 	}).on('error' , function(e){
