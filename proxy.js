@@ -7,7 +7,8 @@ var nc  = require('ncurses');
 
 var spaces_b200 = new Buffer(200); spaces_b200.fill(" ");
 var spaces_200 = spaces_b200.toString();
-		
+
+var requests_status = ""; 		
 var requests_data = {}; 
 var request_id_next = 1; 
 
@@ -125,14 +126,21 @@ var server = http.createServer(function(request, response) {
 		//console.log('sent post data');
 		requests_data[request_id].status="end";
   		proxy_request.end(); 
-	})
+  	})
 	
 	request.on('data', function(chunk) {
 		requests_data[request_id].status="up data";
+		requests_status = "request data " + (request_url.path + spaces_200 ).toString().substr(0,40) ; 
 		proxy_request.write(chunk);
 	});
 	request.on('end', function() {
 		requests_data[request_id].status="up end";
+		requests_status = "request end " + (request_url.path + spaces_200).toString().substr(0,40) ; 
+		proxy_request.end(); 
+	});
+	request.on('close', function() {
+		requests_status = "request close " + (request_url.path + spaces_200).toString().substr(0,40) ; 
+		
 		proxy_request.end(); 
 	});
 	
@@ -159,6 +167,7 @@ if ( 1 ) {
 		
 		//for ( ln = 0; ln < Object.keys(requests_data).length ; ln++ ){
 		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " /*+ (ln -1 )+" connections   "*/);
+		//win.addstr(0,30, "status" + requests_status );
 		
 		for ( key in requests_data ){
 			var request_data = requests_data[key]; 
@@ -182,7 +191,7 @@ if ( 1 ) {
 				if ( (requests_data[key]['timeout'] ) > 0 ){
 					requests_data[key]['timeout'] -= 1; 
 				}
-				if ( (requests_data[key]['timeout'] ) === 0 ){
+				if ( (requests_data[key]['timeout']+"" ) == "0" ){
 					delete requests_data[key] ; 
 				}
 			}
