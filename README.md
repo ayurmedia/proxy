@@ -6,4 +6,10 @@ the script reorders javascript in html-code and moves it from top to bottom, so 
 
 if there is document.write inside the html-flow. and does not append to body at the end, then these blocks will be shown at the end of the document. but its bad practice anyways. so i don't care if these pages break. the pregmatch could be optimized to ignore script tags with document.write, and not rearrange them.
 
+the connections are displayed similar to unix-top, and refreshed every 1 seconds. 
+
+dependency is ncurses, which you can install with "npm install -g ncurses" (or without -g for local install). 
+
+if you stop the server with ctrl-c, then the terminal is messed up because of ncurses. you can restore by typing "reset" in terminal. 
+
 the proxy.js is developed and tested with current latest node.js v0.8.14.
