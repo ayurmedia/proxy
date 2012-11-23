@@ -115,6 +115,8 @@ var server = http.createServer(function(request, response) {
 		requests_data[request_id].status = 'data up' ; 
   		proxy_request.write( chunk, 'binary' ); 
   	}).on('close' , function() {
+  		requests_data[request_id].status="closed";
+  		
   		if ( proxy_request.myresponse ) {
 	  		proxy_response.myresponse.abort();
   		}
@@ -123,7 +125,7 @@ var server = http.createServer(function(request, response) {
 		}
 		// proxy_response , streaming should be closed also...
 		// no need to download from remote-server, as browser does not load data anymore 
-		requests_data[request_id].status="closed";
+		
   	}).on('end' , function(chunk) {
 		//console.log('sent post data');
 		requests_data[request_id].status="end d";
@@ -149,23 +151,29 @@ if ( 1 ) {
 		
 		log_counter++; 
 		var ln = 1; 
+		var nc_lines = nc.lines; 
+		
 		//for ( ln = 0; ln < Object.keys(requests_data).length ; ln++ ){
 		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " /*+ (ln -1 )+" connections   "*/);
 		
 		for ( key in requests_data ){
-			ln++; 
 			var request_data = requests_data[key]; 
-			//win.addstr( ln , 0 , log_counter +"" ); 
-			win.addstr( ln , 0 , (request_data['url'] +"").substr(0,70) );
-			win.addstr( ln , 78, (request_data['timeout' ]+"      ").substr(0,2) );
-			win.addstr( ln , 80, (request_data['status' ]+"      ").substr(0,6) );
-			win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
-			win.addstr( ln , 90, (request_data['progress']+"                ").substr(0,16) ); 
+			
+			ln++; 
+			if ( ln <= nc_lines ) {
+				//win.addstr( ln , 0 , log_counter +"" ); 
+				win.addstr( ln , 0 , (request_data['url'] +"").substr(0,70) );
+				win.addstr( ln , 78, (request_data['timeout' ]+"      ").substr(0,2) );
+				win.addstr( ln , 80, (request_data['status' ]+"        ").substr(0,6) );
+				win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
+				win.addstr( ln , 90, (request_data['progress']+"                ").substr(0,16) ); 
+				win.refresh(); // due to bug in osx+terminal+ncurses we need to refresh often.
+			}
 		
 			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) && requests_data[key]['timeout']+""==""){
-				requests_data[key]['timeout'] =  5; 
+				requests_data[key]['timeout'] =  ( requests_data[key]['is_text'] == 0 ) ? 5 : 9; 
 			}
-			if ( (requests_data[key]['timeout']+"").match(/[1-5]/) ){
+			if ( (requests_data[key]['timeout']+"").match(/[0-9]+/) ){
 				requests_data[key]['timeout'] -= 1; 
 			}
 			if ( (requests_data[key]['timeout']+"") == "0" ){
@@ -174,7 +182,7 @@ if ( 1 ) {
 			
 		}
 		
-		for ( ln ; ln < nc.lines; ln++ ) {
+		for ( ln ; ln < nc_lines; ln++ ) {
 			win.addstr( ln , 0, spaces_200.substr(0,120) );
 		}
 		win.refresh();
