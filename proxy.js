@@ -14,10 +14,7 @@ var request_id_next = 1;
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
 
-	// this domain does not work correct, so we ignore it (subdomainfilter)
-	if ( request_url.hostname.match(/ocsp\./) ){
-		response.end();
-	}
+
 
 	var proxy_options = {}; 
 	proxy_options.headers = request.headers; 
@@ -116,27 +113,29 @@ var server = http.createServer(function(request, response) {
 	}).on('error' , function(e){
     	requests_data[request_id].status = 'error' ; 
   		requests_data[request_id].error  = e.message ; 
-  	}).on('data' , function(chunk) {
-		requests_data[request_id].status = 'data up' ; 
-  		proxy_request.write( chunk, 'binary' ); 
   	}).on('close' , function() {
   		requests_data[request_id].status="closed";
-  		
-  		if ( proxy_request.myresponse ) {
-	  		proxy_response.myresponse.abort();
-  		}
+  		//POST ?
 		if ( proxy_request ) {
-			proxy_request.connection.end(); 
-		}
-		// proxy_response , streaming should be closed also...
-		// no need to download from remote-server, as browser does not load data anymore 
-		
-  	}).on('end' , function(chunk) {
-		//console.log('sent post data');
-		requests_data[request_id].status="end d";
-  		proxy_request.end(); 
-	}).end();
+			proxy_request.end(); 
 
+		}
+		
+	}).on('end' , function() {
+		//console.log('sent post data');
+		requests_data[request_id].status="end";
+  		proxy_request.end(); 
+	})
+	
+	request.on('data', function(chunk) {
+		requests_data[request_id].status="up data";
+		proxy_request.write(chunk);
+	});
+	request.on('end', function() {
+		requests_data[request_id].status="up end";
+		proxy_request.end(); 
+	});
+	
 }).listen(
 	8080
 ).on('error',  function(e) {
