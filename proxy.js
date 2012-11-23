@@ -29,7 +29,8 @@ var server = http.createServer(function(request, response) {
 		'url'		: request_url_substr , 
 		'status'	: 'open' , 
 		'is_text'	: 0 , 
-		'progress'   : '' 
+		'progress'   : '' , 
+		'timeout'   : ''
 	}
 	
 	var proxy_request = http.request( proxy_options , function(proxy_response){
@@ -38,7 +39,8 @@ var server = http.createServer(function(request, response) {
   	   var mybuffer = ''; 
   	   var output = ''; 
   	   proxy_request.myresponse = proxy_response; 
-  	   
+  	   requests_data[request_id].status="request";
+
 		if ( request.url.match(/\.(ico|xml|css|js|jpg|gif|png)/i) ){
 			is_text = 0; 
 		}	
@@ -124,7 +126,7 @@ var server = http.createServer(function(request, response) {
 		requests_data[request_id].status="closed";
   	}).on('end' , function(chunk) {
 		//console.log('sent post data');
-		requests_data[request_id].status="end";
+		requests_data[request_id].status="end d";
   		proxy_request.end(); 
 	}).end();
 
@@ -153,18 +155,19 @@ if ( 1 ) {
 			ln++; 
 			var request_data = requests_data[key]; 
 			//win.addstr( ln , 0 , log_counter +"" ); 
-			win.addstr( ln , 0 , (request_data['url'] +"").substr(0,60) );
+			win.addstr( ln , 0 , (request_data['url'] +"").substr(0,70) );
+			win.addstr( ln , 78, (request_data['timeout' ]+"      ").substr(0,2) );
 			win.addstr( ln , 80, (request_data['status' ]+"      ").substr(0,6) );
 			win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
-			win.addstr( ln , 90, request_data['progress']+"" ); 
+			win.addstr( ln , 90, (request_data['progress']+"           ").substr(0,12) ); 
 		
-			if ( (request_data['status']+"").match(/(closed|end)/) ){
-				requests_data[key]['status'] =  5; 
+			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) && requests_data[key]['timeout']+""==""){
+				requests_data[key]['timeout'] =  5; 
 			}
-			if ( (request_data['status']+"").match(/(1|2|3|4|5)/) ){
-				requests_data[key]['status'] -= 1; 
+			if ( (requests_data[key]['timeout']+"").match(/[1-5]/) ){
+				requests_data[key]['timeout'] -= 1; 
 			}
-			if ( (request_data['status']+"") == "0" ){
+			if ( (requests_data[key]['timeout']+"") == "0" ){
 				delete requests_data[key] ; 
 			}
 			
