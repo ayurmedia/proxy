@@ -14,6 +14,11 @@ var request_id_next = 1;
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
 
+	// this domain does not work correct, so we ignore it (subdomainfilter)
+	if ( request_url.hostname.match(/ocsp\./) ){
+		response.end();
+	}
+
 	var proxy_options = {}; 
 	proxy_options.headers = request.headers; 
 	proxy_options.path = request_url.path;
