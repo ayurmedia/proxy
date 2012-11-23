@@ -163,23 +163,25 @@ if ( 1 ) {
 			if ( ln <= nc_lines ) {
 				//win.addstr( ln , 0 , log_counter +"" ); 
 				win.addstr( ln , 0 , (request_data['url'] +"").substr(0,70) );
-				win.addstr( ln , 78, (request_data['timeout' ]+"      ").substr(0,2) );
+				win.addstr( ln , 77, (request_data['timeout' ]+"      ").substr(0,3) );
 				win.addstr( ln , 80, (request_data['status' ]+"        ").substr(0,6) );
 				win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
 				win.addstr( ln , 90, (request_data['progress']+"                ").substr(0,16) ); 
 				win.refresh(); // due to bug in osx+terminal+ncurses we need to refresh often.
 			}
 		
-			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) && requests_data[key]['timeout']+""==""){
-				requests_data[key]['timeout'] =  ( requests_data[key]['is_text'] == 0 ) ? 5 : 9; 
-			}
-			if ( (requests_data[key]['timeout']+"").match(/[0-9]+/) ){
-				requests_data[key]['timeout'] -= 1; 
-			}
-			if ( (requests_data[key]['timeout']+"") == "0" ){
-				delete requests_data[key] ; 
-			}
+			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) ){
 			
+			    if ( requests_data[key]['timeout'] ==='' ){
+					requests_data[key]['timeout'] = ( requests_data[key]['is_text'] == 0 ) ? 5 : 9; 
+				}
+				if ( (requests_data[key]['timeout'] ) > 0 ){
+					requests_data[key]['timeout'] -= 1; 
+				}
+				if ( (requests_data[key]['timeout'] ) === 0 ){
+					delete requests_data[key] ; 
+				}
+			}
 		}
 		
 		for ( ln ; ln < nc_lines; ln++ ) {
