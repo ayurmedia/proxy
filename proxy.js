@@ -150,6 +150,7 @@ if ( 1 ) {
 		log_counter++; 
 		var ln = 1; 
 		//for ( ln = 0; ln < Object.keys(requests_data).length ; ln++ ){
+		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " /*+ (ln -1 )+" connections   "*/);
 		
 		for ( key in requests_data ){
 			ln++; 
@@ -159,7 +160,7 @@ if ( 1 ) {
 			win.addstr( ln , 78, (request_data['timeout' ]+"      ").substr(0,2) );
 			win.addstr( ln , 80, (request_data['status' ]+"      ").substr(0,6) );
 			win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
-			win.addstr( ln , 90, (request_data['progress']+"           ").substr(0,12) ); 
+			win.addstr( ln , 90, (request_data['progress']+"                ").substr(0,16) ); 
 		
 			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) && requests_data[key]['timeout']+""==""){
 				requests_data[key]['timeout'] =  5; 
@@ -172,7 +173,6 @@ if ( 1 ) {
 			}
 			
 		}
-		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " + (ln -1 )+" connections   ");
 		
 		for ( ln ; ln < nc.lines; ln++ ) {
 			win.addstr( ln , 0, spaces_200.substr(0,120) );
