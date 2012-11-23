@@ -2,13 +2,18 @@ var http = require('http');
 var url  = require('url');
 var util = require('util'); 
 var zlib = require('zlib');
-var StringDecoder = require('string_decoder').StringDecoder;
+var nc  = require('ncurses'); 
+//var StringDecoder = require('StringDecoder');
 
-// Buffer() is global, no need to require !
-// todo: improve output on console with ncurses, make it unxi:top-like
+var spaces_b200 = new Buffer(200); spaces_b200.fill(" ");
+var spaces_200 = spaces_b200.toString();
+		
+var requests_data = {}; 
+var request_id_next = 1; 
 
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
+
 	var proxy_options = {}; 
 	proxy_options.headers = request.headers; 
 	proxy_options.path = request_url.path;
@@ -17,13 +22,20 @@ var server = http.createServer(function(request, response) {
 	proxy_options.port = request_url.port || 80;  
 
 	var spaces = new Buffer(90); spaces.fill(' ');
-	util.print( (request.url + spaces ).substr(0,90) + "\r" ); 
+	var request_url_substr = (request.url + spaces ).substr(0,90); 
+	var request_id = "request_id_" + ( ++request_id_next ); 
+	
+	requests_data[request_id] = { 
+		'url'		: request_url_substr , 
+		'status'	: 'open' , 
+		'is_text'	: 0 , 
+		'progress'   : '' 
+	}
 	
 	var proxy_request = http.request( proxy_options , function(proxy_response){
 	   var content_type =  proxy_response.headers['content-type'] || "" ; 
 	   var is_text = content_type.match('text\/html') || 0;
   	   var mybuffer = ''; 
-  	   //var buffers = []; 
   	   var output = ''; 
   	   proxy_request.myresponse = proxy_response; 
   	   
@@ -34,9 +46,7 @@ var server = http.createServer(function(request, response) {
 			is_text = 0; 
 		}	
 		if( is_text ) {
-			console.log( "\n" + request.url.substr(0,90) ); 	
-			//console.log( proxy_options ); 
-			
+			requests_data[request_id].is_text = 1; 
 			proxy_response.setEncoding('binary');
 		} 
 		
@@ -60,7 +70,9 @@ var server = http.createServer(function(request, response) {
 			if ( len > 10000 ) {
 				cur += chunk.length;
 				var spaces = new Buffer(16); spaces.fill("\t");
-				util.print( spaces + (100.0 * cur / len).toFixed(2) + "% " + (cur/1000.0/1000.0).toFixed(3) + " mb\r");
+				var progress = (100.0 * cur / len).toFixed(2) + "% " + (cur/1000.0/1000.0).toFixed(3) + " mb"; 
+				requests_data[request_id].progress = progress; 
+				requests_data[request_id].status="data";
 			}	
 		});
 
@@ -71,15 +83,7 @@ var server = http.createServer(function(request, response) {
 		  		// workaround: to get multiline regex we convert nl to uffff and back
 		  		//buffers_all = Buffer.concat( buffers );
 		  		//var decoder = new StringDecoder('utf8');
-		  		//output = "...";
-		  		//console.log( proxy_response.headers ); 
-		  		
-		  		/*output = decoder.write( buffers_all ).toString('utf8'); 
-		  		
-		  		console.log("buffers-count: " +  buffers.length ); 
-		  		console.log("buffers-length: " + output.length ); 
-		  		console.log( output.substr(0,200) ); 
-		  		*/
+		  		//output = decoder.write( buffers_all ).toString('utf8'); 
 		  		
 				output = mybuffer.toString().replace(/\n/g,'\uffff'); 
 				// find javascripts	
@@ -96,36 +100,82 @@ var server = http.createServer(function(request, response) {
 				output = output.replace(/\uffff/g,'\n');
  	
 				//response.write( buffers_all ); 
-				
 				response.write( output ,'binary');	
 			} 	
+			requests_data[request_id].status="end";
 			response.end();
 		});
 
 	}).on('error' , function(e){
-    	console.log('problem with request: ' + e.message ); 
-    	console.log( "e: " + request.url ); 
+    	requests_data[request_id].status = 'error' ; 
+  		requests_data[request_id].error  = e.message ; 
   	}).on('data' , function(chunk) {
 		proxy_request.write( chunk, 'binary' ); 
   	}).on('close' , function() {
-  		console.log('connection closed');
   		if ( proxy_request.myresponse ) {
 	  		proxy_response.myresponse.abort();
   		}
 		if ( proxy_request ) {
-			console.log( "request still runnning " ); 
 			proxy_request.connection.end(); 
 		}
 		// proxy_response , streaming should be closed also...
 		// no need to download from remote-server, as browser does not load data anymore 
-		console.log( "c:" + request.url.substr(0,90) );  
+		requests_data[request_id].status="closed";
   	}).on('end' , function(chunk) {
-		console.log('sent post data');
-		proxy_request.end(); 
+		//console.log('sent post data');
+		requests_data[request_id].status="end";
+  		proxy_request.end(); 
 	}).end();
 
-}).listen(8080).on('error',  function(e) {
+}).listen(
+	8080
+).on('error',  function(e) {
 	console.log('got server error' + e.message ); 
 }); 
-console.log('server started on 8080');
+
+// set to 0 if you want to turn off ncurses display-refresh, 
+// change refreshtimer in setInterval (default 1000 = 1seconds)
+if ( 1 ) {
+	// provide logging
+	var win = new nc.Window();
+	nc.showCursor = false; 
+	
+	var log_counter = 0; 
+	setInterval( function(){
+		//console.log( requests_data ); 
+		
+		log_counter++; 
+		var ln = 1; 
+		//for ( ln = 0; ln < Object.keys(requests_data).length ; ln++ ){
+		
+		for ( key in requests_data ){
+			ln++; 
+			var request_data = requests_data[key]; 
+			//win.addstr( ln , 0 , log_counter +"" ); 
+			win.addstr( ln , 0 , (request_data['url'] +"").substr(0,60) );
+			win.addstr( ln , 80, (request_data['status' ]+"      ").substr(0,6) );
+			win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
+			win.addstr( ln , 90, request_data['progress']+"" ); 
+		
+			if ( (request_data['status']+"").match(/(closed|end)/) ){
+				requests_data[key]['status'] =  5; 
+			}
+			if ( (request_data['status']+"").match(/(1|2|3|4|5)/) ){
+				requests_data[key]['status'] -= 1; 
+			}
+			if ( (request_data['status']+"") == "0" ){
+				delete requests_data[key] ; 
+			}
+			
+		}
+		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " + (ln -1 )+" connections   ");
+		
+		for ( ln ; ln < nc.lines; ln++ ) {
+			win.addstr( ln , 0, spaces_200.substr(0,120) );
+		}
+		win.refresh();
+	} , 1000); // refresh log every 1s
+} else {
+	console.log( 'server stated on port 8080' ); 
+}
 
