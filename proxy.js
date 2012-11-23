@@ -72,8 +72,8 @@ var server = http.createServer(function(request, response) {
 				var spaces = new Buffer(16); spaces.fill("\t");
 				var progress = (100.0 * cur / len).toFixed(2) + "% " + (cur/1000.0/1000.0).toFixed(3) + " mb"; 
 				requests_data[request_id].progress = progress; 
-				requests_data[request_id].status="data";
 			}	
+				requests_data[request_id].status="data";
 		});
 
 		
@@ -110,7 +110,8 @@ var server = http.createServer(function(request, response) {
     	requests_data[request_id].status = 'error' ; 
   		requests_data[request_id].error  = e.message ; 
   	}).on('data' , function(chunk) {
-		proxy_request.write( chunk, 'binary' ); 
+		requests_data[request_id].status = 'data up' ; 
+  		proxy_request.write( chunk, 'binary' ); 
   	}).on('close' , function() {
   		if ( proxy_request.myresponse ) {
 	  		proxy_response.myresponse.abort();
