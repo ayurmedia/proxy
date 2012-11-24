@@ -42,6 +42,7 @@ var server = http.createServer(function(request, response) {
   	   var mybuffer = ''; 
   	   var output = ''; 
   	   proxy_request.myresponse = proxy_response; 
+  	   proxy_request.do_close = 0; 
   	   requests_data[request_id].status="request";
 
 		if ( request.url.match(/\.(ico|xml|css|js|jpg|gif|png)/i) ){
@@ -79,6 +80,10 @@ var server = http.createServer(function(request, response) {
 				requests_data[request_id].progress = progress; 
 			}	
 				requests_data[request_id].status="data";
+				
+			if ( proxy_request.do_close == 1) {
+				proxy_request.abort();
+			}
 		});
 
 		
@@ -140,8 +145,8 @@ var server = http.createServer(function(request, response) {
 	});
 	request.on('close', function() {
 		requests_status = "request close " + (request_url.path + spaces_200).toString().substr(0,40) ; 
-		
-		proxy_request.end(); 
+		proxy_request.do_close = 1; 
+		//proxy_request.end(); 
 	});
 	
 }).listen(
@@ -173,7 +178,7 @@ if ( 1 ) {
 			var request_data = requests_data[key]; 
 			
 			ln++; 
-			if ( ln <= nc_lines ) {
+			//if ( ln <= nc_lines + 2) {
 				//win.addstr( ln , 0 , log_counter +"" ); 
 				win.addstr( ln , 0 , (request_data['url'] +"").substr(0,70) );
 				win.addstr( ln , 77, (request_data['timeout' ]+"      ").substr(0,3) );
@@ -181,7 +186,7 @@ if ( 1 ) {
 				win.addstr( ln , 75, (request_data['is_text' ]+" ").substr(0,1) );
 				win.addstr( ln , 90, (request_data['progress']+"                ").substr(0,16) ); 
 				win.refresh(); // due to bug in osx+terminal+ncurses we need to refresh often.
-			}
+			//}
 		
 			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) ){
 			
