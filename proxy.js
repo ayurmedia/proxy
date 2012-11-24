@@ -26,9 +26,9 @@ var server = http.createServer(function(request, response) {
 
 	var spaces = new Buffer(90); spaces.fill(' ');
 	var request_url_substr = (request.url + spaces ).substr(0,90); 
-	var request_id = "request_id_" + ( ++request_id_next ); 
+	request.id = "request.id_" + ( request_id_next++ ); 
 	
-	requests_data[request_id] = { 
+	requests_data[request.id] = { 
 		'url'		: request_url_substr , 
 		'status'	: 'open' , 
 		'is_text'	: 0 , 
@@ -43,7 +43,7 @@ var server = http.createServer(function(request, response) {
   	   var output = ''; 
   	   proxy_request.myresponse = proxy_response; 
   	   proxy_request.do_close = 0; 
-  	   requests_data[request_id].status="request";
+  	   requests_data[request.id].status="request";
 
 		if ( request.url.match(/\.(ico|xml|css|js|jpg|gif|png)/i) ){
 			is_text = 0; 
@@ -52,7 +52,7 @@ var server = http.createServer(function(request, response) {
 			is_text = 0; 
 		}	
 		if( is_text ) {
-			requests_data[request_id].is_text = 1; 
+			requests_data[request.id].is_text = 1; 
 			proxy_response.setEncoding('binary');
 		} 
 		
@@ -77,12 +77,12 @@ var server = http.createServer(function(request, response) {
 				cur += chunk.length;
 				var spaces = new Buffer(16); spaces.fill("\t");
 				var progress = (100.0 * cur / len).toFixed(2) + "% " + (cur/1000.0/1000.0).toFixed(3) + " mb"; 
-				requests_data[request_id].progress = progress; 
+				requests_data[request.id].progress = progress; 
 			}	
-				requests_data[request_id].status="data";
+				requests_data[request.id].status="data";
 				
 			if ( proxy_request.do_close == 1) {
-				proxy_request.abort();
+				//proxy_request.abort();
 			}
 		});
 
@@ -112,15 +112,15 @@ var server = http.createServer(function(request, response) {
 				//response.write( buffers_all ); 
 				response.write( output ,'binary');	
 			} 	
-			requests_data[request_id].status="end";
+			requests_data[request.id].status="ended";
 			response.end();
 		});
 
 	}).on('error' , function(e){
-    	requests_data[request_id].status = 'error' ; 
-  		requests_data[request_id].error  = e.message ; 
+    	requests_data[request.id].status = 'error' ; 
+  		requests_data[request.id].error  = e.message ; 
   	}).on('close' , function() {
-  		requests_data[request_id].status="closed";
+  		requests_data[request.id].status="closed";
   		//POST ?
 		if ( proxy_request ) {
 			proxy_request.end(); 
@@ -129,17 +129,17 @@ var server = http.createServer(function(request, response) {
 		
 	}).on('end' , function() {
 		//console.log('sent post data');
-		requests_data[request_id].status="end";
+		requests_data[request.id].status="ended";
   		proxy_request.end(); 
   	})
 	
 	request.on('data', function(chunk) {
-		requests_data[request_id].status="up data";
+		requests_data[request.id].status="up data";
 		requests_status = "request data " + (request_url.path + spaces_200 ).toString().substr(0,40) ; 
 		proxy_request.write(chunk);
 	});
 	request.on('end', function() {
-		requests_data[request_id].status="up end";
+		requests_data[request.id].status="up end";
 		requests_status = "request end " + (request_url.path + spaces_200).toString().substr(0,40) ; 
 		proxy_request.end(); 
 	});
@@ -188,16 +188,18 @@ if ( 1 ) {
 				win.refresh(); // due to bug in osx+terminal+ncurses we need to refresh often.
 			//}
 		
-			if ( (requests_data[key]['status']+"").match(/(closed|end|error)/) ){
+			if ( (requests_data[key]['status']+"").match(/(closed|ended|error)/) ){
 			
-			    if ( requests_data[key]['timeout'] ==='' ){
+			    if ( (requests_data[key]['timeout']+"") =="" ){
 					requests_data[key]['timeout'] = ( requests_data[key]['is_text'] == 0 ) ? 5 : 9; 
 				}
 				if ( (requests_data[key]['timeout'] ) > 0 ){
 					requests_data[key]['timeout'] -= 1; 
 				}
 				if ( (requests_data[key]['timeout']+"" ) == "0" ){
-					delete requests_data[key] ; 
+					request_data = requests_data[key] ; 
+					delete requests_data[key];
+					//requests_data[key] = request_data; 
 				}
 			}
 		}
