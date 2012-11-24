@@ -12,6 +12,7 @@ var requests_status = "";
 var requests_data = {}; 
 var request_id_next = 1; 
 
+
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
 
@@ -26,7 +27,7 @@ var server = http.createServer(function(request, response) {
 
 	var spaces = new Buffer(90); spaces.fill(' ');
 	var request_url_substr = (request.url + spaces ).substr(0,90); 
-	request.id = "request.id_" + ( request_id_next++ ); 
+	request.id = "request_id_" + ( request_id_next++ ); 
 	
 	requests_data[request.id] = { 
 		'url'		: request_url_substr , 
@@ -82,7 +83,7 @@ var server = http.createServer(function(request, response) {
 				requests_data[request.id].status="data";
 				
 			if ( proxy_request.do_close == 1) {
-				//proxy_request.abort();
+				proxy_request.abort();
 			}
 		});
 
@@ -171,7 +172,7 @@ if ( 1 ) {
 		var nc_lines = nc.lines; 
 		
 		//for ( ln = 0; ln < Object.keys(requests_data).length ; ln++ ){
-		win.addstr(0,1, "proxy server 8080 :" + log_counter + "s " /*+ (ln -1 )+" connections   "*/);
+		win.addstr(0,1, "proxy server 8080 :" + (log_counter/60.0).toFixed(1) + "m " /*+ (ln -1 )+" connections   "*/);
 		//win.addstr(0,30, "status" + requests_status );
 		
 		for ( key in requests_data ){
@@ -193,11 +194,11 @@ if ( 1 ) {
 			    if ( (requests_data[key]['timeout']+"") =="" ){
 					requests_data[key]['timeout'] = ( requests_data[key]['is_text'] == 0 ) ? 5 : 9; 
 				}
-				if ( (requests_data[key]['timeout'] ) > 0 ){
+				if ( (requests_data[key]['timeout'] ).toFixed(0) > 0 ){
 					requests_data[key]['timeout'] -= 1; 
 				}
 				if ( (requests_data[key]['timeout']+"" ) == "0" ){
-					request_data = requests_data[key] ; 
+					//request_data = requests_data[key] ; 
 					delete requests_data[key];
 					//requests_data[key] = request_data; 
 				}
@@ -205,10 +206,11 @@ if ( 1 ) {
 		}
 		
 		for ( ln ; ln < nc_lines; ln++ ) {
-			win.addstr( ln , 0, spaces_200.substr(0,120) );
+			win.addstr( ln+1 , 0, "" + spaces_200.substr(0,120) );
+			win.refresh();
 		}
-		win.refresh();
-	} , 1000); // refresh log every 1s
+		},
+		1000); // refresh log every 1s
 } else {
 	console.log( 'server stated on port 8080' ); 
 }
