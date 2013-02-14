@@ -2,9 +2,12 @@ var http = require('http');
 var url  = require('url');
 var util = require('util'); 
 var zlib = require('zlib');
+var gunzip = zlib.createGunzip();
+
 var nc  = require('ncurses'); 
 //var StringDecoder = require('StringDecoder');
-
+var fs = require('fs');
+		
 var spaces_b200 = new Buffer(200); spaces_b200.fill(" ");
 var spaces_200 = spaces_b200.toString();
 
@@ -16,7 +19,12 @@ var request_id_next = 1;
 var server = http.createServer(function(request, response) {
 	var request_url = url.parse(request.url); 
 
-
+	/*
+	if (request.url.match(/(\/ad|ad\.|banner)/) ) {
+		response.end();
+		return;
+	}
+	*/
 
 	var proxy_options = {}; 
 	proxy_options.headers = request.headers; 
@@ -24,6 +32,8 @@ var server = http.createServer(function(request, response) {
 	proxy_options.method = request.method ; 
 	proxy_options.host = request_url.hostname; 
 	proxy_options.port = request_url.port || 80;  
+	
+	
 
 	var spaces = new Buffer(90); spaces.fill(' ');
 	var request_url_substr = (request.url + spaces ).substr(0,90); 
@@ -37,6 +47,34 @@ var server = http.createServer(function(request, response) {
 		'timeout'   : ''
 	}
 	
+	
+	
+	if ( request_url.path.match(/(jquery\.min\.js)/) ) {
+			var file_data = fs.readFileSync('www/jquery.min.js' );
+			response.writeHead(200, {'Content-Type': 'text/plain'});
+			response.end(file_data);
+				requests_data[request.id].status="ended";
+			return;
+	}
+	if ( request_url.path.match(/(jquery\.lazyload\.min\.js)/) ) {
+			var file_data = fs.readFileSync('www/jquery.lazyload.min.js' );
+			response.writeHead(200, {'Content-Type': 'text/plain'});
+				requests_data[request.id].status="ended";
+			response.end(file_data);
+			return;
+	}
+	if ( request_url.path.match(/(nodeajaxloader\.gif)/) ) {
+			var file_data = fs.readFileSync('www/s.gif' );
+			response.writeHead(200, {'Content-Type': 'image/gif'});
+			response.end(file_data);
+				requests_data[request.id].status="ended";
+			return;
+	}
+		
+	if ( !request.url.match(/\.(ico|xml|css|js|jpg|gif|png)/i) ){
+		proxy_options.headers['accept-encoding'] = '';
+	}
+		
 	var proxy_request = http.request( proxy_options , function(proxy_response){
 	   var content_type =  proxy_response.headers['content-type'] || "" ; 
 	   var is_text = content_type.match('text\/html') || 0;
@@ -57,8 +95,19 @@ var server = http.createServer(function(request, response) {
 			proxy_response.setEncoding('binary');
 		} 
 		
+		// directly output /jquery.min.js and /jquery.lazy.min.js 
+		
+		
+		
+		
 		// this only works if we dont change the content-lenght, but only rearrange
-		response.writeHead(proxy_response.statusCode, proxy_response.headers);
+		
+		if( !is_text ) {
+			response.writeHead(proxy_response.statusCode, proxy_response.headers);
+		}
+		
+		
+		
 		
 		var len = parseInt(proxy_response.headers['content-length'], 10);
 		var cur = 0;
@@ -91,27 +140,65 @@ var server = http.createServer(function(request, response) {
 
 		proxy_response.on('end', function() {
 		  	if ( is_text  ) {
+		  	
+		  	
 		  		// workaround: to get multiline regex we convert nl to uffff and back
 		  		//buffers_all = Buffer.concat( buffers );
 		  		//var decoder = new StringDecoder('utf8');
 		  		//output = decoder.write( buffers_all ).toString('utf8'); 
 		  		
-				output = mybuffer.toString().replace(/\n/g,'\uffff'); 
+				output = mybuffer.toString();
+				
+				// decode if it is gzip
+				//output = gunzip.write( mybuffer );
+				 
+				output = output.replace(/\n/g,'\uffff'); 
+			    //output = decoder.write(mybuffer).replace(/\n/g,'\uffff'); 
+			
+				
 				// find javascripts	
 				matches = output.match(/\<script.*?\<\/script\>/gi ) || [];
 				
-				if( matches.length > 0 && output.match(/\<\/body\>/i) /* google redirects with missing body */) {
+				
+				var lazyscript = "<!-- INSERT LAZY -->";
+				if ( !output.match( /lazyload\.js/gi ) && !output.match( /lazyload\.min\.js/gi ) ){
+					
+					//output = output.replace( /\<img(.*?) src\=\"\/(.*?)\"/gi , '<img class="lazy" $1 data-original="http://src.sencha.io/640/http://'+ request_url.hostname + '/$2" src="/nodeajaxloader.gif"' );
+					output = output.replace( /\<img(.*?) src\=\"\/(.*?)\"/gi , '<img class="lazy" $1 data-original="$2" src="/nodeajaxloader.gif"' );
+					//output = output.replace( /\<img(.*?) src\=\"http(.*?)\"/gi , '<img class="lazy" $1 data-original="http://src.sencha.io/640/http$2" src="/nodeajaxloader.gif"' );
+					output = output.replace( /href\=\"http:\/\/i.imgur.com(.*?)\"/gi , 'href="http://src.sencha.io/jpg20/640/http://i.imgur.com$1"' );
+					
+					//output = output.replace( /\<img(.*?) src\=\"(.*?)\"/gi , '<img class="lazy" $1 data-original="$2" src="/nodeajaxloader.gif"' );
+					
+					
+					//request_url.path 
+					
+					if ( !output.match( /jquery(.*?)\.min\.js/gi ) ){
+						lazyscript += '<script src="/jquery.min.js" ></script>'; 
+					}
+					lazyscript += '<script src="/jquery.lazyload.min.js" ></script>'; 
+					lazyscript += '<script>$("img.lazy").lazyload({ threshold : 200 ,effect : "fadeIn",failure_limit : 100 }) </script>';
+				}
+				//response.write( lazyscript );
+				
+				if( matches.length >= 0 && output.match(/\<\/body\>/i) /* google redirects with missing body */) {
 					// remove javascripts
-					output = output.replace(	/\<script.*?\<\/script\>/gi , "" ); 
+					output = output.replace(	/\<script.*?\<\/script\>/gi , "<!-- move script  -->" ); 
 
 					// insert js before /body	
-					output = output.replace( /\<\/body\>/i , ""+ matches.join('') + "</body>" ); 
+					output = output.replace( /\<\/body\>/i , ""+ matches.join('') + lazyscript + "<!-- moved --></body>" ); 
 				}
+				
 				// send to browser
 				output = output.replace(/\uffff/g,'\n');
  	
+				
+				proxy_response.headers['content-length'] = output.length; 
+				response.writeHead(proxy_response.statusCode, proxy_response.headers);
+	
 				//response.write( buffers_all ); 
 				response.write( output ,'binary');	
+		
 			} 	
 			requests_data[request.id].status="ended";
 			response.end();
@@ -153,7 +240,7 @@ var server = http.createServer(function(request, response) {
 }).listen(
 	8080
 ).on('error',  function(e) {
-	console.log('got server error' + e.message ); 
+	console.log('got server error with' + e.message ); 
 }); 
 
 // set to 0 if you want to turn off ncurses display-refresh, 
@@ -207,8 +294,8 @@ if ( 1 ) {
 		
 		for ( ln ; ln < nc_lines; ln++ ) {
 			win.addstr( ln+1 , 0, "" + spaces_200.substr(0,120) );
-			win.refresh();
 		}
+			win.refresh();
 		},
 		1000); // refresh log every 1s
 } else {
